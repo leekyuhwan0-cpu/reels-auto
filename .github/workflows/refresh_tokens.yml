@@ -1,0 +1,31 @@
+name: Refresh Reels Instagram Tokens
+
+on:
+  schedule:
+    - cron: '0 1 1 * *'  # 매월 1일 01:00 UTC
+  workflow_dispatch:      # 수동 실행 버튼
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 패키지 설치
+        run: pip install requests PyNaCl
+
+      - name: 설정 파일 생성
+        env:
+          CONFIG_B64: ${{ secrets.REELS_CONFIG }}
+        run: echo "$CONFIG_B64" | tr -d '[:space:]' | base64 -d > reels_config.py
+
+      - name: 토큰 갱신 및 Secret 업데이트
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: python refresh_tokens.py
