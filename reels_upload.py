@@ -81,10 +81,16 @@ def download_from_drive(file_id, filename, tmp_dir):
             _, done = downloader.next_chunk()
     return fpath
 
-def delete_from_drive(file_id, filename):
+def move_drive_file(file_id, filename, src_folder_id, dest_folder_id):
+    """게시 완료된 파일을 삭제하지 않고 완료보관함 폴더로 이동"""
     service = get_drive_service()
-    service.files().delete(fileId=file_id, supportsAllDrives=True).execute()
-    print(f"  Drive 삭제: {filename}")
+    service.files().update(
+        fileId=file_id,
+        addParents=dest_folder_id,
+        removeParents=src_folder_id,
+        supportsAllDrives=True,
+    ).execute()
+    print(f"  Drive 이동(완료보관함): {filename}")
 
 # ── R2 업로드 ─────────────────────────────────────────────────
 def upload_to_r2(file_path, filename):
@@ -180,9 +186,11 @@ def post_group(lang, num, item):
     print(f"  게시 결과: {result}")
 
     if result.get("id"):
+        src_folder_id = config["drive_folder_id"]
+        dest_folder_id = config["done_folder_id"]
         for key in ("mp4", "txt"):
             if key in item:
-                delete_from_drive(item[key]["id"], item[key]["name"])
+                move_drive_file(item[key]["id"], item[key]["name"], src_folder_id, dest_folder_id)
         print(f"  [{lang}] 릴스 {num}번 업로드 완료!")
         return True
     else:
