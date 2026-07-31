@@ -1,8 +1,10 @@
 name: Reels Auto Upload - JA
 
 on:
-  schedule:
-    - cron: '0 7 * * *'   # 16:00 KST, 하루 1개만 업로드
+  # schedule 중단 (2026-07-31): 일본 계정은 사용자 직접제작 릴스로 전환, 바이럴 리패키징 자동업로드는 중지.
+  # 재개 시 아래 schedule 주석 해제.
+  # schedule:
+  #   - cron: '0 7 * * *'   # 16:00 KST, 하루 1개만 업로드
   workflow_dispatch:        # 수동 실행 버튼
     inputs:
       target:
