@@ -17,8 +17,8 @@ from reels_config import (
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN
 )
 
-# 릴스 파일명: {번호}_{키워드}.mp4 / {번호}_{키워드}.txt (카드뉴스와 달리 채널 프리픽스 없음)
-_FNAME_RE = re.compile(r'^(\d+)_.+\.(mp4|txt)$')
+# 릴스 파일명: {제목}.mp4 / {제목}.txt (숫자 프리픽스 불필요, 대본형 직접제작 콘텐츠는 제목만 사용)
+_FNAME_RE = re.compile(r'^(.+)\.(mp4|txt)$')
 
 # ── Google Drive 인증 ─────────────────────────────────────────
 def get_drive_service():
@@ -157,7 +157,7 @@ def post_group(lang, num, item):
     ig_user_id = config["ig_user_id"]
     token = config["access_token"]
 
-    print(f"\n[{lang}] 릴스 {num}번 업로드 시작")
+    print(f"\n[{lang}] 릴스 '{num}' 업로드 시작")
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         caption = ""
@@ -191,7 +191,7 @@ def post_group(lang, num, item):
         for key in ("mp4", "txt"):
             if key in item:
                 move_drive_file(item[key]["id"], item[key]["name"], src_folder_id, dest_folder_id)
-        print(f"  [{lang}] 릴스 {num}번 업로드 완료!")
+        print(f"  [{lang}] 릴스 '{num}' 업로드 완료!")
         return True
     else:
         print(f"  [오류] 게시 실패: {result}")
