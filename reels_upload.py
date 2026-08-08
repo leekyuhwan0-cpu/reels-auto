@@ -10,7 +10,7 @@ import boto3
 from pathlib import Path
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload
+from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 
 from reels_config import (
     ACCOUNTS, R2_BUCKET, R2_PUBLIC_URL, R2_ENDPOINT, R2_ACCESS_KEY, R2_SECRET_KEY,
@@ -205,6 +205,43 @@ def post_facebook_reel(page_id, page_token, video_url, caption, timeout=300, int
     print(f"  [FB 릴스] 게시 결과: {finish_j}")
     return bool(finish_j.get("success"))
 
+# ── YouTube Shorts 게시 ───────────────────────────────────────
+def get_youtube_service(refresh_token):
+    creds = Credentials(
+        token=None,
+        refresh_token=refresh_token,
+        client_id=GOOGLE_CLIENT_ID,
+        client_secret=GOOGLE_CLIENT_SECRET,
+        token_uri="https://oauth2.googleapis.com/token",
+    )
+    return build("youtube", "v3", credentials=creds)
+
+def post_youtube_short(refresh_token, video_path, title, description, lang="ja"):
+    """유튜브 쇼츠로 업로드(세로/짧은 영상은 자동으로 쇼츠 취급됨).
+    실패해도 IG 게시 결과에는 영향 없도록 호출부에서 예외를 삼킨다."""
+    service = get_youtube_service(refresh_token)
+    body = {
+        "snippet": {
+            "title": (title or "Shorts")[:100],
+            "description": description or "",
+            "categoryId": "27",  # 교육
+            "defaultLanguage": lang,
+            "defaultAudioLanguage": lang,
+        },
+        "status": {
+            "privacyStatus": "public",
+            "selfDeclaredMadeForKids": False,  # 아동용 아님
+            "containsSyntheticMedia": True,  # AI로 생성/수정된 콘텐츠임을 고지
+        },
+    }
+    media = MediaFileUpload(video_path, chunksize=-1, resumable=True, mimetype="video/mp4")
+    request = service.videos().insert(part="snippet,status", body=body, media_body=media)
+    response = None
+    while response is None:
+        _, response = request.next_chunk()
+    print(f"  [YouTube] 게시 결과: video_id={response.get('id')}")
+    return response.get("id")
+
 # ── 메인 업로드 함수 ──────────────────────────────────────────
 def post_group(lang, num, item):
     config = ACCOUNTS[lang]
@@ -256,6 +293,18 @@ def post_group(lang, num, item):
                 post_facebook_reel(fb_page_id, fb_page_token, video_url, caption)
             except Exception as e:
                 print(f"  [FB 릴스 오류] 예외 발생: {e}")
+
+        # 유튜브 쇼츠 동시 게시 (실패해도 IG 게시 결과는 유지)
+        yt_refresh_token = config.get("youtube_refresh_token")
+        if yt_refresh_token:
+            print(f"  [YouTube] 쇼츠 업로드 시작...")
+            try:
+                with tempfile.TemporaryDirectory() as yt_tmp_dir:
+                    yt_fpath = download_from_drive(mp4_item["id"], mp4_item["name"], yt_tmp_dir)
+                    title = Path(mp4_item["name"]).stem
+                    post_youtube_short(yt_refresh_token, yt_fpath, title, caption, lang=lang)
+            except Exception as e:
+                print(f"  [YouTube 오류] 예외 발생: {e}")
 
         return True
     else:
