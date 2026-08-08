@@ -151,6 +151,60 @@ def publish_media(ig_user_id, token, container_id, retries=4, retry_wait=10):
         return result
     return result
 
+# ── Facebook Reels 게시 ───────────────────────────────────────
+def post_facebook_reel(page_id, page_token, video_url, caption, timeout=300, interval=5):
+    """Facebook 페이지에 릴스로 동시 게시 (start -> upload(file_url) -> finish 3단계).
+    실패해도 IG 게시 결과에는 영향 없도록 호출부에서 예외를 삼킨다."""
+    start_res = requests.post(
+        f"https://graph.facebook.com/v21.0/{page_id}/video_reels",
+        data={"upload_phase": "start", "access_token": page_token},
+    )
+    start_j = start_res.json()
+    video_id = start_j.get("video_id")
+    upload_url = start_j.get("upload_url")
+    if not video_id or not upload_url:
+        print(f"  [FB 릴스 오류] start 단계 실패: {start_j}")
+        return False
+
+    up_res = requests.post(
+        upload_url,
+        headers={"Authorization": f"OAuth {page_token}", "file_url": video_url},
+    )
+    up_j = up_res.json()
+    if not up_j.get("success"):
+        print(f"  [FB 릴스 오류] upload 단계 실패: {up_j}")
+        return False
+
+    elapsed = 0
+    while elapsed < timeout:
+        st_res = requests.get(
+            f"https://graph.facebook.com/v21.0/{video_id}",
+            params={"fields": "status", "access_token": page_token},
+        )
+        status = st_res.json().get("status", {}).get("video_status")
+        print(f"  [FB 릴스] 처리 상태: {status}")
+        if status == "ready":
+            break
+        if status == "error":
+            print(f"  [FB 릴스 오류] 처리 실패")
+            return False
+        time.sleep(interval)
+        elapsed += interval
+
+    finish_res = requests.post(
+        f"https://graph.facebook.com/v21.0/{page_id}/video_reels",
+        data={
+            "upload_phase": "finish",
+            "video_id": video_id,
+            "video_state": "PUBLISHED",
+            "description": caption,
+            "access_token": page_token,
+        },
+    )
+    finish_j = finish_res.json()
+    print(f"  [FB 릴스] 게시 결과: {finish_j}")
+    return bool(finish_j.get("success"))
+
 # ── 메인 업로드 함수 ──────────────────────────────────────────
 def post_group(lang, num, item):
     config = ACCOUNTS[lang]
@@ -192,6 +246,17 @@ def post_group(lang, num, item):
             if key in item:
                 move_drive_file(item[key]["id"], item[key]["name"], src_folder_id, dest_folder_id)
         print(f"  [{lang}] 릴스 '{num}' 업로드 완료!")
+
+        # Facebook 릴스 동시 게시 (실패해도 IG 게시 결과는 유지)
+        fb_page_id = config.get("fb_page_id")
+        fb_page_token = config.get("fb_page_token")
+        if fb_page_id and fb_page_token:
+            print(f"  [Facebook] 릴스 업로드 시작...")
+            try:
+                post_facebook_reel(fb_page_id, fb_page_token, video_url, caption)
+            except Exception as e:
+                print(f"  [FB 릴스 오류] 예외 발생: {e}")
+
         return True
     else:
         print(f"  [오류] 게시 실패: {result}")
