@@ -81,16 +81,13 @@ def download_from_drive(file_id, filename, tmp_dir):
             _, done = downloader.next_chunk()
     return fpath
 
-def move_drive_file(file_id, filename, src_folder_id, dest_folder_id):
-    """게시 완료된 파일을 삭제하지 않고 완료보관함 폴더로 이동"""
+def delete_drive_file(file_id, filename):
+    """IG+FB+YT 동시 게시가 모두 끝난 소스 파일을 완전 삭제.
+    (예전엔 유튜브 업로드를 나중에 하기 위해 완료보관함으로 이동해뒀지만,
+    이제 한 번에 3곳 다 올리므로 소스 보존이 불필요해짐. 로컬에 대본/컷분리/이미지소스 별도 보관 중)"""
     service = get_drive_service()
-    service.files().update(
-        fileId=file_id,
-        addParents=dest_folder_id,
-        removeParents=src_folder_id,
-        supportsAllDrives=True,
-    ).execute()
-    print(f"  Drive 이동(완료보관함): {filename}")
+    service.files().delete(fileId=file_id, supportsAllDrives=True).execute()
+    print(f"  Drive 삭제: {filename}")
 
 # ── R2 업로드 ─────────────────────────────────────────────────
 def upload_to_r2(file_path, filename):
@@ -277,11 +274,6 @@ def post_group(lang, num, item):
     print(f"  게시 결과: {result}")
 
     if result.get("id"):
-        src_folder_id = config["drive_folder_id"]
-        dest_folder_id = config["done_folder_id"]
-        for key in ("mp4", "txt"):
-            if key in item:
-                move_drive_file(item[key]["id"], item[key]["name"], src_folder_id, dest_folder_id)
         print(f"  [{lang}] 릴스 '{num}' 업로드 완료!")
 
         # Facebook 릴스 동시 게시 (실패해도 IG 게시 결과는 유지)
@@ -305,6 +297,14 @@ def post_group(lang, num, item):
                     post_youtube_short(yt_refresh_token, yt_fpath, title, caption, lang=lang)
             except Exception as e:
                 print(f"  [YouTube 오류] 예외 발생: {e}")
+
+        # IG+FB+YT 게시 시도가 모두 끝난 뒤 소스 파일 완전 삭제
+        for key in ("mp4", "txt"):
+            if key in item:
+                try:
+                    delete_drive_file(item[key]["id"], item[key]["name"])
+                except Exception as e:
+                    print(f"  [Drive 삭제 오류] {e}")
 
         return True
     else:

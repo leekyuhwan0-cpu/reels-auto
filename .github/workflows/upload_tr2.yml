@@ -1,0 +1,54 @@
+name: Reels Auto Upload - TR2
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 15:00 KST, 하루 1번만 트리거, 이후 내부에서 반복
+  workflow_dispatch:        # 수동 실행 버튼
+    inputs:
+      target:
+        description: '지정 업로드할 번호 (비우면 랜덤)'
+        required: false
+        default: ''
+
+concurrency:
+  group: reels-tr2-upload
+  cancel-in-progress: false
+
+env:
+  REPEAT_COUNT: 3
+  INTERVAL_SEC: 180
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 패키지 설치
+        run: pip install -r requirements.txt
+
+      - name: 설정 파일 생성
+        env:
+          CONFIG_B64: ${{ secrets.REELS_CONFIG }}
+        run: echo "$CONFIG_B64" | tr -d '[:space:]' | base64 -d > reels_config.py
+
+      - name: 릴스 업로드 실행
+        run: |
+          if [ -n "${{ github.event.inputs.target }}" ]; then
+            python reels_upload.py tr2 "${{ github.event.inputs.target }}"
+          else
+            for i in $(seq 1 "$REPEAT_COUNT"); do
+              echo "=== ${i}/${REPEAT_COUNT}번째 업로드 ==="
+              python reels_upload.py tr2 ""
+              if [ "$i" -lt "$REPEAT_COUNT" ]; then
+                sleep "$INTERVAL_SEC"
+              fi
+            done
+          fi
