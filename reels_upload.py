@@ -19,6 +19,8 @@ from reels_config import (
 
 # 릴스 파일명: {제목}.mp4 / {제목}.txt (숫자 프리픽스 불필요, 대본형 직접제작 콘텐츠는 제목만 사용)
 _FNAME_RE = re.compile(r'^(.+)\.(mp4|txt)$')
+# 파일명 앞에 "숫자_" 넘버링이 붙어있는 경우(de 등 리패키징 콘텐츠) 그 부분만 제거하고 제목으로 사용
+_NUM_PREFIX_RE = re.compile(r'^\d+_+(.+)$')
 
 # ── Google Drive 인증 ─────────────────────────────────────────
 def get_drive_service():
@@ -293,7 +295,11 @@ def post_group(lang, num, item):
             try:
                 with tempfile.TemporaryDirectory() as yt_tmp_dir:
                     yt_fpath = download_from_drive(mp4_item["id"], mp4_item["name"], yt_tmp_dir)
-                    title = caption or Path(mp4_item["name"]).stem
+                    stem = Path(mp4_item["name"]).stem
+                    num_match = _NUM_PREFIX_RE.match(stem)
+                    # "숫자_제목" 형식 파일명이면 넘버링만 떼고 제목으로 사용(de 등),
+                    # 그 외(제목이 곧 파일명 전체인 대본형, ja 등)는 캡션을 제목으로 사용
+                    title = num_match.group(1) if num_match else (caption or stem)
                     post_youtube_short(yt_refresh_token, yt_fpath, title, caption, lang=lang)
             except Exception as e:
                 print(f"  [YouTube 오류] 예외 발생: {e}")
