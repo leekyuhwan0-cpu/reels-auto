@@ -293,7 +293,7 @@ def post_group(lang, num, item):
             try:
                 with tempfile.TemporaryDirectory() as yt_tmp_dir:
                     yt_fpath = download_from_drive(mp4_item["id"], mp4_item["name"], yt_tmp_dir)
-                    title = Path(mp4_item["name"]).stem
+                    title = caption or Path(mp4_item["name"]).stem
                     post_youtube_short(yt_refresh_token, yt_fpath, title, caption, lang=lang)
             except Exception as e:
                 print(f"  [YouTube 오류] 예외 발생: {e}")
