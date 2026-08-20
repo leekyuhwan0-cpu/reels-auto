@@ -300,7 +300,9 @@ def post_group(lang, num, item):
                     # "숫자_제목" 형식 파일명이면 넘버링만 떼고 제목으로 사용(de 등),
                     # 그 외(제목이 곧 파일명 전체인 대본형, ja 등)는 캡션을 제목으로 사용
                     title = num_match.group(1) if num_match else (caption or stem)
-                    post_youtube_short(yt_refresh_token, yt_fpath, title, caption, lang=lang)
+                    # YouTube API는 유효한 ISO 639-1 코드만 허용 (tr1/tr2 같은 계정 키는 불가)
+                    yt_lang = "tr" if lang.startswith("tr") else lang
+                    post_youtube_short(yt_refresh_token, yt_fpath, title, caption, lang=yt_lang)
             except Exception as e:
                 print(f"  [YouTube 오류] 예외 발생: {e}")
 
