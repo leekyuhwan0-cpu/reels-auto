@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  REPEAT_COUNT: 3
+  REPEAT_COUNT: 2
   INTERVAL_SEC: 180
 
 jobs:
