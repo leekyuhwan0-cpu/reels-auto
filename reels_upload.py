@@ -63,9 +63,13 @@ def scan_drive_folder(folder_id):
     for f in files:
         name = f["name"]
         m = _FNAME_RE.match(name)
-        if not m:
+        if m:
+            num, ext = m.group(1), m.group(2)
+        elif f.get("mimeType", "").startswith("video/"):
+            # 확장자 없이 제목만으로 저장된 영상 파일도 mp4로 인식
+            num, ext = name, "mp4"
+        else:
             continue
-        num, ext = m.group(1), m.group(2)
         groups.setdefault(num, {})
         groups[num]["mp4" if ext == "mp4" else "txt"] = {"id": f["id"], "name": name}
 
