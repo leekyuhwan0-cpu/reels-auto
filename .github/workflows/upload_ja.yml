@@ -36,4 +36,17 @@ jobs:
         run: echo "$CONFIG_B64" | tr -d '[:space:]' | base64 -d > reels_config.py
 
       - name: 릴스 업로드 실행
-        run: python reels_upload.py ja "${{ github.event.inputs.target }}"
+        run: |
+          set +e
+          python reels_upload.py ja "${{ github.event.inputs.target }}"
+          code=$?
+          set -e
+          if [ $code -eq 0 ]; then ok=1; fail=0; else ok=0; fail=1; fi
+          if [ -n "$DISCORD_WEBHOOK" ]; then
+            curl -s -H "Content-Type: application/json" \
+              -d "{\"content\":\"릴스업로드 - JA ${ok}개 업로드 완료, ${fail}개 실패\"}" \
+              "$DISCORD_WEBHOOK"
+          fi
+          exit $code
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}

@@ -41,14 +41,24 @@ jobs:
 
       - name: 릴스 업로드 실행
         run: |
+          ok=0
+          fail=0
           if [ -n "${{ github.event.inputs.target }}" ]; then
-            python reels_upload.py de "${{ github.event.inputs.target }}"
+            if python reels_upload.py de "${{ github.event.inputs.target }}"; then ok=$((ok+1)); else fail=$((fail+1)); fi
           else
             for i in $(seq 1 "$REPEAT_COUNT"); do
               echo "=== ${i}/${REPEAT_COUNT}번째 업로드 ==="
-              python reels_upload.py de ""
+              if python reels_upload.py de ""; then ok=$((ok+1)); else fail=$((fail+1)); fi
               if [ "$i" -lt "$REPEAT_COUNT" ]; then
                 sleep "$INTERVAL_SEC"
               fi
             done
           fi
+          echo "OK=$ok FAIL=$fail"
+          if [ -n "$DISCORD_WEBHOOK" ]; then
+            curl -s -H "Content-Type: application/json" \
+              -d "{\"content\":\"릴스업로드 - DE ${ok}개 업로드 완료, ${fail}개 실패\"}" \
+              "$DISCORD_WEBHOOK"
+          fi
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}

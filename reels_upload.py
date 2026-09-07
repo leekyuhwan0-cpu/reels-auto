@@ -93,7 +93,7 @@ def delete_drive_file(file_id, filename):
     이제 한 번에 3곳 다 올리므로 소스 보존이 불필요해짐. 로컬에 대본/컷분리/이미지소스 별도 보관 중)"""
     service = get_drive_service()
     service.files().delete(fileId=file_id, supportsAllDrives=True).execute()
-    print(f"  Drive 삭제: {filename}")
+    print("  Drive 삭제 완료")
 
 # ── R2 업로드 ─────────────────────────────────────────────────
 def upload_to_r2(file_path, filename):
@@ -251,7 +251,7 @@ def post_group(lang, num, item):
     ig_user_id = config["ig_user_id"]
     token = config["access_token"]
 
-    print(f"\n[{lang}] 릴스 '{num}' 업로드 시작")
+    print(f"\n[{lang}] 릴스 업로드 시작")
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         caption = ""
@@ -280,7 +280,7 @@ def post_group(lang, num, item):
     print(f"  게시 결과: {result}")
 
     if result.get("id"):
-        print(f"  [{lang}] 릴스 '{num}' 업로드 완료!")
+        print(f"  [{lang}] 릴스 업로드 완료!")
 
         # Facebook 릴스 동시 게시 (실패해도 IG 게시 결과는 유지)
         fb_page_id = config.get("fb_page_id")
@@ -338,18 +338,18 @@ def post_one(lang, target=None):
     if target:
         if target not in available:
             print(f"[{lang}] target '{target}' 을(를) Drive에서 찾을 수 없음")
-            return
-        post_group(lang, target, available[target])
-        return
+            return False
+        return post_group(lang, target, available[target])
 
     if not available:
         print(f"[{lang}] 업로드 가능한 릴스 없음")
-        return
+        return False
 
     num = random.choice(list(available.keys()))
-    post_group(lang, num, available[num])
+    return post_group(lang, num, available[num])
 
 if __name__ == "__main__":
     lang = sys.argv[1] if len(sys.argv) > 1 else "ja"
     target = sys.argv[2] if len(sys.argv) > 2 else None
-    post_one(lang, target)
+    ok = post_one(lang, target)
+    sys.exit(0 if ok else 1)
