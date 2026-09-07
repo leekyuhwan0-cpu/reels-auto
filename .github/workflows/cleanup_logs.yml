@@ -1,0 +1,38 @@
+name: Cleanup Logs
+
+on:
+  workflow_run:
+    workflows:
+      - "Reels Auto Upload - JA"
+      - "Reels Auto Upload - TR1"
+      - "Reels Auto Upload - TR2"
+      - "Reels Auto Upload - DE"
+      - "Refresh Reels Instagram Tokens"
+    types:
+      - completed
+  schedule:
+    - cron: '*/15 * * * *'
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete completed run logs
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          REPO="${{ github.repository }}"
+          page=1
+          while : ; do
+            ids=$(curl -s -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/$REPO/actions/runs?status=completed&per_page=100&page=$page" \
+              | jq -r '.workflow_runs[].id')
+            if [ -z "$ids" ]; then
+              break
+            fi
+            for id in $ids; do
+              curl -s -o /dev/null -X DELETE -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/$REPO/actions/runs/$id"
+            done
+            page=$((page+1))
+          done
