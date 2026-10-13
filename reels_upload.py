@@ -22,6 +22,10 @@ _FNAME_RE = re.compile(r'^(.+)\.(mp4|txt)$')
 # 파일명 앞에 "숫자_" 넘버링이 붙어있는 경우(de 등 리패키징 콘텐츠) 그 부분만 제거하고 제목으로 사용
 _NUM_PREFIX_RE = re.compile(r'^\d+_+(.+)$')
 
+# 계정별로 동시 게시를 끄는 플랫폼 ("fb", "youtube"). 토큰/ID는 설정에 그대로 두고 여기서만 끈다.
+# tr2: 인스타만 게시 (다시 켜려면 아래 항목을 지우면 됨)
+DISABLED_PLATFORMS = {"tr2": {"fb", "youtube"}}
+
 # ── Google Drive 인증 ─────────────────────────────────────────
 def get_drive_service():
     creds = Credentials(
@@ -49,15 +53,21 @@ def scan_drive_folder(folder_id):
     반환: { "198": {"mp4": {...}, "txt": {...}}, ... }
     """
     service = get_drive_service()
-    results = service.files().list(
-        q=f"'{folder_id}' in parents and trashed=false",
-        fields="files(id, name, mimeType)",
-        pageSize=1000,
-        supportsAllDrives=True,
-        includeItemsFromAllDrives=True,
-    ).execute()
-
-    files = results.get("files", [])
+    files = []
+    page_token = None
+    while True:
+        results = service.files().list(
+            q=f"'{folder_id}' in parents and trashed=false",
+            fields="nextPageToken, files(id, name, mimeType)",
+            pageSize=1000,
+            pageToken=page_token,
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True,
+        ).execute()
+        files.extend(results.get("files", []))
+        page_token = results.get("nextPageToken")
+        if not page_token:
+            break
     groups = {}
 
     for f in files:
@@ -285,7 +295,7 @@ def post_group(lang, num, item):
         # Facebook 릴스 동시 게시 (실패해도 IG 게시 결과는 유지)
         fb_page_id = config.get("fb_page_id")
         fb_page_token = config.get("fb_page_token")
-        if fb_page_id and fb_page_token:
+        if fb_page_id and fb_page_token and "fb" not in DISABLED_PLATFORMS.get(lang, ()):
             print(f"  [Facebook] 릴스 업로드 시작...")
             try:
                 post_facebook_reel(fb_page_id, fb_page_token, video_url, caption)
@@ -294,7 +304,7 @@ def post_group(lang, num, item):
 
         # 유튜브 쇼츠 동시 게시 (실패해도 IG 게시 결과는 유지)
         yt_refresh_token = config.get("youtube_refresh_token")
-        if yt_refresh_token:
+        if yt_refresh_token and "youtube" not in DISABLED_PLATFORMS.get(lang, ()):
             print(f"  [YouTube] 쇼츠 업로드 시작...")
             try:
                 with tempfile.TemporaryDirectory() as yt_tmp_dir:
