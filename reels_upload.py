@@ -23,8 +23,8 @@ _FNAME_RE = re.compile(r'^(.+)\.(mp4|txt)$')
 _NUM_PREFIX_RE = re.compile(r'^\d+_+(.+)$')
 
 # 계정별로 동시 게시를 끄는 플랫폼 ("fb", "youtube"). 토큰/ID는 설정에 그대로 두고 여기서만 끈다.
-# tr2: 인스타만 게시 (다시 켜려면 아래 항목을 지우면 됨)
-DISABLED_PLATFORMS = {"tr2": {"fb", "youtube"}}
+# tr2: 인스타 + 페북 릴스 게시, 유튜브만 제외 (다시 끄려면 "fb" 추가)
+DISABLED_PLATFORMS = {"tr2": {"youtube"}}
 
 # ── Google Drive 인증 ─────────────────────────────────────────
 def get_drive_service():
