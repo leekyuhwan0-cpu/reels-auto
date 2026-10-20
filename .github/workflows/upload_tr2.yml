@@ -2,7 +2,7 @@ name: Reels Auto Upload - TR2
 
 on:
   schedule:
-    - cron: '0 6 * * *'   # 15:00 KST, 하루 1번만 트리거, 이후 내부에서 반복
+    - cron: '0 14 * * *'   # 23:00 KST = 17:00 터키(UTC+3), 하루 1번만 트리거, 이후 내부에서 반복
   workflow_dispatch:        # 수동 실행 버튼
     inputs:
       target:
